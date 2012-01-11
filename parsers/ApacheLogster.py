@@ -1,8 +1,8 @@
-###  A sample logster parser file that can be used to count the number
+###  A apache logster parser file that can be used to count the number
 ###  of response codes found in an Apache access log.
 ###
 ###  For example:
-###  sudo ./logster --dry-run --output=ganglia SampleLogster /var/log/httpd/access_log
+###  sudo ./logster --dry-run --output=ganglia ApacheLogster /var/log/httpd/access_log
 ###
 ###
 ###  Copyright 2011, Etsy, Inc.
@@ -29,7 +29,7 @@ import re
 from logster_helper import MetricObject, LogsterParser
 from logster_helper import LogsterParsingException
 
-class SampleLogster(LogsterParser):
+class ApacheLogster(LogsterParser):
 
     def __init__(self, option_string=None):
         '''Initialize any data structures or variables needed for keeping track
@@ -40,10 +40,13 @@ class SampleLogster(LogsterParser):
         self.http_4xx = 0
         self.http_5xx = 0
         
+        #Get an average response time
+        self.num_requests = 0
+        self.total_time = 0L
+
         # Regular expression for matching lines we are interested in, and capturing
         # fields from the line (in this case, http_status_code).
-        self.reg = re.compile('.*HTTP/1.\d\" (?P<http_status_code>\d{3}) .*')
-
+        self.reg = re.compile('.*HTTP/1.\d\" (?P<http_status_code>\d{3}) .*? (?P<time_taken>\d+)$')
 
     def parse_line(self, line):
         '''This function should digest the contents of one line at a time, updating
@@ -56,6 +59,8 @@ class SampleLogster(LogsterParser):
             if regMatch:
                 linebits = regMatch.groupdict()
                 status = int(linebits['http_status_code'])
+                self.num_requests += 1
+                self.total_time += int(linebits['time_taken'])
 
                 if (status < 200):
                     self.http_1xx += 1
@@ -79,6 +84,8 @@ class SampleLogster(LogsterParser):
         '''Run any necessary calculations on the data collected from the logs
         and return a list of metric objects.'''
         self.duration = duration
+        if self.num_requests == 0:
+            self.num_requests = 1
 
         # Return a list of metrics objects
         return [
@@ -87,4 +94,5 @@ class SampleLogster(LogsterParser):
             MetricObject("http_3xx", (self.http_3xx / self.duration), "Responses per sec"),
             MetricObject("http_4xx", (self.http_4xx / self.duration), "Responses per sec"),
             MetricObject("http_5xx", (self.http_5xx / self.duration), "Responses per sec"),
+            MetricObject("avg_time", (self.total_time / self.num_requests), "Average request time in microseconds"),
         ]
