@@ -88,7 +88,7 @@ class ApacheLogster(LogsterParser):
         if self.num_requests == 0:
             self.num_requests = 1
 
-        sort(self.times)
+        self.times.sort()
 
         # Return a list of metrics objects
         return [
