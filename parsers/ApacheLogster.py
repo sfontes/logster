@@ -23,7 +23,6 @@
 ###  along with Logster. If not, see <http://www.gnu.org/licenses/>.
 ###
 
-import time
 import re
 
 from logster_helper import MetricObject, LogsterParser
@@ -40,9 +39,10 @@ class ApacheLogster(LogsterParser):
         self.http_4xx = 0
         self.http_5xx = 0
         
-        #Get an average response time
+        #Get an average response time, median, max and minimum
         self.num_requests = 0
         self.total_time = 0L
+        self.times = []
 
         # Regular expression for matching lines we are interested in, and capturing
         # fields from the line (in this case, http_status_code).
@@ -61,6 +61,7 @@ class ApacheLogster(LogsterParser):
                 status = int(linebits['http_status_code'])
                 self.num_requests += 1
                 self.total_time += int(linebits['time_taken'])
+                self.times.append(int(linebits['time_taken']))
 
                 if (status < 200):
                     self.http_1xx += 1
@@ -87,6 +88,8 @@ class ApacheLogster(LogsterParser):
         if self.num_requests == 0:
             self.num_requests = 1
 
+        sort(self.times)
+
         # Return a list of metrics objects
         return [
             MetricObject("http_1xx", (self.http_1xx / self.duration), "Responses per sec"),
@@ -95,4 +98,7 @@ class ApacheLogster(LogsterParser):
             MetricObject("http_4xx", (self.http_4xx / self.duration), "Responses per sec"),
             MetricObject("http_5xx", (self.http_5xx / self.duration), "Responses per sec"),
             MetricObject("avg_time", (self.total_time / self.num_requests), "Average request time in microseconds"),
+            MetricObject("median", (self.times[len(self.times)/2]), "Median request time in microseconds"),
+            MetricObject("max_time", (self.times[-1]), "Maximum request time in microseconds"),
+            MetricObject("min_time", (self.times[0]), "Minimum request time in microseconds"),
         ]
