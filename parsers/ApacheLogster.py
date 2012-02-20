@@ -87,6 +87,7 @@ class ApacheLogster(LogsterParser):
         self.duration = duration
         if self.num_requests == 0:
             self.num_requests = 1
+            self.times = [0]
 
         self.times.sort()
 
